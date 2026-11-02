@@ -1,0 +1,83 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b6e99"><link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<title>Quản lý hồ câu</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font:16px system-ui,sans-serif;background:#eef3f6;color:#17262e;padding-bottom:70px}
+header{background:#0b6e99;color:#fff;padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));font-weight:700;font-size:18px}
+#app{padding:12px;max-width:640px;margin:auto}h3{margin:14px 0 8px}.c{color:#5b6b73;margin:6px 0}small{display:block;color:#5b6b73}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.sp{border:0;border-radius:12px;padding:12px 4px;background:#d9f2e3;color:#14532d;font:inherit}.sp b{font-size:20px;display:block}.sp.b{background:#ffe3c2;color:#7c3a00}
+.tabs{display:flex;gap:6px;overflow:auto}.tabs button{border:0;border-radius:20px;padding:8px 14px;background:#fff;font:inherit;white-space:nowrap}.tabs .on{background:#0b6e99;color:#fff}
+.li{display:flex;justify-content:space-between;align-items:center;background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:8px;gap:8px}.li button{margin-left:6px}
+button{font:inherit}.li button,.row button{border:0;background:#e1edf3;border-radius:8px;padding:8px 10px}
+.pri{width:100%;border:0;background:#0b6e99;color:#fff;border-radius:12px;padding:13px;margin-top:10px;font-weight:700}.gh{width:100%;border:0;background:none;color:#b42318;padding:12px}.warn{color:#b42318}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#fff;border-top:1px solid #d5dfe4;padding-bottom:env(safe-area-inset-bottom)}nav button{flex:1;border:0;background:none;padding:14px 2px;font-size:13px;color:#5b6b73}nav .on{color:#0b6e99;font-weight:700;border-top:3px solid #0b6e99}
+#m{position:fixed;inset:0;background:#0007;display:none;align-items:flex-end;z-index:9}#m>div{background:#fff;width:100%;max-height:88vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px;max-width:640px;margin:auto}
+input,select{width:100%;padding:11px;border:1px solid #c5d2d9;border-radius:8px;font:inherit;margin:5px 0}.row{display:flex;gap:6px;align-items:center}.row select{flex:1}
+table{width:100%;border-collapse:collapse;margin:8px 0}td{padding:6px 0;border-bottom:1px solid #eef3f6}td:last-child{text-align:right}.t td{font-weight:700;font-size:18px;border:0}
+.k{display:grid;grid-template-columns:1fr 1fr;gap:8px}.k div{background:#fff;border-radius:12px;padding:12px}.k b{font-size:18px}
+#to{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#17262e;color:#fff;padding:10px 16px;border-radius:20px;display:none;z-index:10}
+</style></head><body>
+<header>🎣 Quản lý hồ câu</header><div id="app"></div><nav id="nav"></nav><div id="m" onclick="if(event.target===this)closeM()"><div id="mb"></div></div><div id="to"></div>
+<script>
+const $=s=>document.querySelector(s),K='hocau.v1';
+let S=JSON.parse(localStorage.getItem(K)||'null')||{ponds:[{id:1,name:'Hồ thường',price:50000,spots:20},{id:2,name:'Hồ VIP',price:100000,spots:10}],sessions:[],products:[{id:3,name:'Mồi câu',price:20000,stock:50},{id:4,name:'Nước suối',price:10000,stock:100},{id:5,name:'Thuê cần',price:30000,stock:20}],species:[{n:'Trắm',b:60000},{n:'Chép',b:40000},{n:'Rô phi',b:30000}],stock:[],expenses:[],sales:[],seq:10};
+const save=()=>localStorage.setItem(K,JSON.stringify(S)),id=()=>++S.seq;
+const money=n=>Math.round(n).toLocaleString('vi-VN')+'đ',esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const P=i=>S.ponds.find(p=>p.id==i),SS=i=>S.sessions.find(s=>s.id==i),active=()=>S.sessions.filter(s=>!s.paid);
+const dur=ms=>{const m=Math.floor(ms/6e4);return Math.floor(m/60)+'g'+String(m%60).padStart(2,'0')};
+const T=['Sơ đồ','Kho & bán','Cá','Báo cáo','Cài đặt'];let tab=0,pid=S.ponds[0]&&S.ponds[0].id;
+function calc(s,end=Date.now()){const p=P(s.pond)||{price:0},h=Math.max(1,Math.ceil((end-s.start)/36e5)),fee=h*p.price,
+svc=s.items.reduce((a,i)=>a+i.p*i.q,0),bb=s.catches.filter(c=>c.a==='bán lại').reduce((a,c)=>a+c.kg*c.b,0);return{h,fee,svc,bb,total:fee+svc-bb}}
+function modal(h){$('#mb').innerHTML=h;$('#m').style.display='flex'}function closeM(){$('#m').style.display='none'}
+function toast(t){const e=$('#to');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',1800)}
+function render(){$('#app').innerHTML=[sodo,ban,ca,bc,cd][tab]();$('#nav').innerHTML=T.map((t,i)=>`<button class="${i==tab?'on':''}" onclick="tab=${i};render()">${t}</button>`).join('')}
+/* Sơ đồ & phiên câu */
+function sodo(){const p=P(pid)||S.ponds[0];if(!p)return'<p class=c>Chưa có hồ. Vào Cài đặt để thêm.</p>';pid=p.id;
+const busy={};active().filter(s=>s.pond==p.id).forEach(s=>busy[s.spot]=s);let g='';
+for(let i=1;i<=p.spots;i++){const s=busy[i];g+=s?`<button class="sp b" onclick="openS(${s.id})"><b>${i}</b><small>${dur(Date.now()-s.start)}</small></button>`:`<button class="sp" onclick="checkin(${p.id},${i})"><b>${i}</b><small>Trống</small></button>`}
+return`<div class=tabs>${S.ponds.map(x=>`<button class="${x.id==p.id?'on':''}" onclick="pid=${x.id};render()">${esc(x.name)}</button>`).join('')}</div><p class=c>${money(p.price)}/giờ · ${Object.keys(busy).length}/${p.spots} đang câu</p><div class=grid>${g}</div>`}
+function checkin(po,sp){modal(`<h3>Mở phiên – chỗ ${sp}</h3><input id=cn placeholder="Tên khách (không bắt buộc)"><input id=cp placeholder="Số điện thoại" inputmode=tel><button class=pri onclick="doCheckin(${po},${sp})">Bắt đầu tính giờ</button>`)}
+function doCheckin(po,sp){S.sessions.push({id:id(),pond:po,spot:sp,start:Date.now(),cust:$('#cn').value.trim(),phone:$('#cp').value.trim(),items:[],catches:[],paid:false});save();closeM();render()}
+function openS(sid){const s=SS(sid),c=calc(s);modal(`<h3>Chỗ ${s.spot} · ${esc(P(s.pond).name)}</h3><p class=c>${esc(s.cust||'Khách lẻ')} ${esc(s.phone)} · ${dur(Date.now()-s.start)}</p>
+<table><tr><td>Tiền giờ (${c.h} giờ)</td><td>${money(c.fee)}</td></tr>
+${s.items.map(i=>`<tr><td>${esc(i.n)} ×${i.q}</td><td>${money(i.p*i.q)}</td></tr>`).join('')}
+${s.catches.map(k=>`<tr><td>🐟 ${esc(k.n)} ${k.kg}kg (${k.a})</td><td>${k.a==='bán lại'?'-'+money(k.kg*k.b):''}</td></tr>`).join('')}
+<tr class=t><td>Tổng</td><td>${money(c.total)}</td></tr></table>
+<div class=row><select id=pi>${S.products.map(p=>`<option value=${p.id}>${esc(p.name)} (${money(p.price)})</option>`).join('')}</select><input id=pq type=number value=1 min=1 style="width:70px"><button onclick="addItem(${sid})">+ Hàng</button></div>
+<div class=row><select id=ks>${S.species.map((p,i)=>`<option value=${i}>${esc(p.n)}</option>`).join('')}</select><input id=kk type=number step=0.1 placeholder=kg style="width:80px"><select id=ka><option>mang về</option><option>thả</option><option>bán lại</option></select><button onclick="addCatch(${sid})">+ Cá</button></div>
+<select id=pm><option>Tiền mặt</option><option>Chuyển khoản</option><option>Ví/Thẻ</option></select>
+<button class=pri onclick="pay(${sid})">Thanh toán ${money(c.total)}</button><button class=gh onclick="cancelS(${sid})">Hủy phiên</button>`)}
+function addItem(sid){const s=SS(sid),p=S.products.find(x=>x.id==$('#pi').value),q=Math.max(1,+$('#pq').value||1);if(!p)return;if(p.stock<q&&!confirm('Kho chỉ còn '+p.stock+'. Vẫn thêm?'))return;p.stock=Math.max(0,p.stock-q);s.items.push({n:p.name,p:p.price,q,pid:p.id});save();openS(sid)}
+function addCatch(sid){const kg=+$('#kk').value;if(!(kg>0))return toast('Nhập số kg');const sp=S.species[$('#ks').value];SS(sid).catches.push({n:sp.n,kg,a:$('#ka').value,b:sp.b});save();openS(sid)}
+function pay(sid){const s=SS(sid);s.end=Date.now();s.total=calc(s,s.end).total;s.method=$('#pm').value;s.paid=true;save();closeM();render();toast('Đã thu '+money(s.total))}
+function cancelS(sid){if(!confirm('Hủy phiên này? Hàng đã gọi sẽ hoàn kho.'))return;const s=SS(sid);s.items.forEach(i=>{const p=S.products.find(x=>x.id==i.pid);if(p)p.stock+=i.q});S.sessions=S.sessions.filter(x=>x.id!=sid);save();closeM();render()}
+/* Kho & bán hàng */
+function ban(){return`<h3>Hàng hóa & kho</h3>`+S.products.map(p=>`<div class=li><div><b>${esc(p.name)}</b><small>${money(p.price)} · tồn ${p.stock}${p.stock<=5?' ⚠️':''}</small></div><div><button onclick="sell(${p.id})">Bán</button><button onclick="restock(${p.id})">+Nhập</button></div></div>`).join('')+`<button class=pri onclick="newProd()">+ Thêm hàng</button>`}
+function sell(i){const p=S.products.find(x=>x.id==i);if(p.stock<1)return toast('Hết hàng');p.stock--;S.sales.push({id:id(),t:Date.now(),n:p.name,p:p.price,q:1});save();render();toast('Đã bán 1 '+p.name)}
+function restock(i){const q=+prompt('Nhập thêm số lượng:');if(q>0){S.products.find(x=>x.id==i).stock+=q;const c=+prompt('Tổng tiền nhập (đ, bỏ trống nếu không ghi chi):');if(c>0)S.expenses.push({id:id(),t:Date.now(),type:'Nhập hàng',amt:c});save();render()}}
+function newProd(){const n=prompt('Tên hàng:');if(!n)return;S.products.push({id:id(),name:n,price:+prompt('Giá bán (đ):')||0,stock:+prompt('Tồn kho ban đầu:')||0});save();render()}
+/* Cá */
+function ca(){return`<h3>Cá trong hồ</h3>`+S.ponds.map(p=>{const th=S.stock.filter(x=>x.pond==p.id).reduce((a,x)=>a+x.kg,0),out=S.sessions.filter(s=>s.pond==p.id).flatMap(s=>s.catches).filter(k=>k.a!=='thả').reduce((a,k)=>a+k.kg,0),left=th-out;
+return`<div class=li><div><b>${esc(p.name)}</b><small>Đã thả ${th}kg · lấy ra ${out.toFixed(1)}kg</small></div><div class="${left<20?'warn':''}"><b>~${left.toFixed(1)}kg</b>${left<20?'<small>Cần thả thêm</small>':''}<button onclick="thaCa(${p.id})">+Thả</button></div></div>`}).join('')+
+`<h3>Lịch sử thả cá</h3>`+(S.stock.slice(-10).reverse().map(x=>`<div class=li><div><b>${esc(x.sp)} ${x.kg}kg</b><small>${esc((P(x.pond)||{}).name)} · ${new Date(x.t).toLocaleDateString('vi-VN')}</small></div><div>${money(x.cost)}</div></div>`).join('')||'<p class=c>Chưa có lần thả nào.</p>')}
+function thaCa(po){const sp=prompt('Loại cá:','Trắm');if(!sp)return;const kg=+prompt('Số kg thả:');if(!(kg>0))return;const cost=+prompt('Tiền nhập cá (đ):')||0;S.stock.push({id:id(),pond:po,sp,kg,cost,t:Date.now()});if(cost)S.expenses.push({id:id(),t:Date.now(),type:'Nhập cá',amt:cost});save();render()}
+/* Báo cáo */
+function sum(t0){const rs=S.sessions.filter(s=>s.paid&&s.end>=t0),v=rs.reduce((a,s)=>a+s.total,0),sl=S.sales.filter(x=>x.t>=t0).reduce((a,x)=>a+x.p*x.q,0),ex=S.expenses.filter(e=>e.t>=t0).reduce((a,e)=>a+e.amt,0);return{n:rs.length,rev:v+sl,ex,pr:v+sl-ex}}
+function bc(){const d=new Date();d.setHours(0,0,0,0);const a=sum(+d);d.setDate(1);const m=sum(+d);
+const box=(t,x)=>`<h3>${t}</h3><div class=k><div><small>Doanh thu</small><b>${money(x.rev)}</b></div><div><small>Chi phí</small><b>${money(x.ex)}</b></div><div><small>Lãi/lỗ</small><b class="${x.pr<0?'warn':''}">${money(x.pr)}</b></div><div><small>Lượt khách</small><b>${x.n}</b></div></div>`;
+return box('Hôm nay',a)+box('Tháng này',m)+`<button class=pri onclick="addExp()">+ Ghi khoản chi</button><h3>Chi gần đây</h3>`+(S.expenses.slice(-8).reverse().map(e=>`<div class=li><div><b>${esc(e.type)}</b><small>${new Date(e.t).toLocaleDateString('vi-VN')}${e.note?' · '+esc(e.note):''}</small></div><div>${money(e.amt)}</div></div>`).join('')||'<p class=c>Chưa có khoản chi.</p>')}
+function addExp(){const type=prompt('Loại chi (điện nước, lương, sửa chữa...):');if(!type)return;const amt=+prompt('Số tiền (đ):');if(!(amt>0))return;S.expenses.push({id:id(),t:Date.now(),type,amt});save();render()}
+/* Cài đặt */
+function cd(){return`<h3>Hồ câu</h3>`+S.ponds.map(p=>`<div class=li><div><b>${esc(p.name)}</b><small>${money(p.price)}/giờ · ${p.spots} chỗ</small></div><button onclick="editPond(${p.id})">Sửa</button></div>`).join('')+`<button class=pri onclick="editPond(0)">+ Thêm hồ</button>
+<h3>Loại cá & giá mua lại/kg</h3>`+S.species.map(s=>`<div class=li><b>${esc(s.n)}</b><div>${money(s.b)}</div></div>`).join('')+`<button class=pri onclick="addSp()">+ Thêm loại cá</button>
+<h3>Dữ liệu</h3><button class=pri onclick="exp()">⬇ Sao lưu (tải file JSON)</button><button class=pri onclick="$('#imp').click()">⬆ Khôi phục từ file</button><input id=imp type=file accept=".json" hidden onchange="imp(this)"><p class=c>Dữ liệu lưu ngay trên điện thoại này. Hãy sao lưu thường xuyên.</p>`}
+function editPond(i){const p=i?P(i):{name:'',price:50000,spots:10};const n=prompt('Tên hồ:',p.name);if(!n)return;p.name=n;p.price=+prompt('Giá/giờ (đ):',p.price)||p.price;p.spots=Math.max(1,+prompt('Số chỗ ngồi:',p.spots)||p.spots);if(!i)S.ponds.push({...p,id:id()});save();render()}
+function addSp(){const n=prompt('Tên loại cá:');if(n){S.species.push({n,b:+prompt('Giá mua lại/kg (đ):')||0});save();render()}}
+function exp(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S)],{type:'application/json'}));a.download='hocau-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click()}
+function imp(el){const f=el.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);if(!d.ponds)throw 0;S=d;save();pid=S.ponds[0]&&S.ponds[0].id;render();toast('Đã khôi phục')}catch(e){alert('File không hợp lệ')}})}
+render();setInterval(()=>{if(tab==0&&$('#m').style.display!=='flex')render()},30000);
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script></body></html>
