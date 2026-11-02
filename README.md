@@ -18,6 +18,7 @@
 - Báo cáo ngày/tháng, ghi chi phí (nhập cá, nhập hàng tự ghi chi)
 - In phiếu tạm tính / hóa đơn thanh toán (khổ giấy nhiệt 58 hoặc 80mm), hóa đơn bán lẻ; in lại hóa đơn cũ ở tab Báo cáo và Kho & bán; tên, địa chỉ, SĐT, lời cảm ơn chỉnh trong Cài đặt
 - Sao lưu/khôi phục bằng file JSON
+- Reset dữ liệu trong Cài đặt (cần mật khẩu chủ hồ + gõ XOA): chỉ xóa giao dịch, hoặc xóa toàn bộ như mới cài; mặc định tải file sao lưu trước khi xóa
 
 ## Đưa lên GitHub và chạy trên điện thoại
 1. Tạo repository mới trên GitHub, giải nén thư mục này và tải toàn bộ file lên (nhánh `main`).

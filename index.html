@@ -229,7 +229,17 @@ function cd(){return`<h3>Hồ câu</h3>`+S.ponds.map(p=>`<div class=li><div><b>$
 dirOK?`<div class=li><div><b>📁 ${esc(dirName)}/du-lieu</b><small>Mỗi ngày chốt sổ lúc 24h sẽ ghi 1 file YYYY-MM-DD.json</small></div><button onclick="syncDir()">Ghi lại</button></div><button class=sec onclick="pickDir()">Đổi thư mục</button>`:
 dirName?`<button class=pri onclick="syncDir()">Cho phép ghi vào thư mục ${esc(dirName)}</button><p class=c>Trình duyệt cần bạn cho phép lại mỗi lần mở app.</p>`:
 '<button class=pri onclick="pickDir()">📁 Chọn thư mục app</button><p class=c>Chọn thư mục chứa app (nơi có index.html). App sẽ tạo thư mục con du-lieu để lưu sổ từng ngày.</p>'}
-<h3>Dữ liệu</h3><button class=pri onclick="exp()">⬇ Sao lưu (tải file JSON)</button><button class=pri onclick="$('#imp').click()">⬆ Khôi phục từ file</button><input id=imp type=file accept=".json" hidden onchange="imp(this)"><p class=c>Dữ liệu lưu ngay trên điện thoại này. Hãy sao lưu thường xuyên.</p>`}
+<h3>Dữ liệu</h3><button class=pri onclick="exp()">⬇ Sao lưu (tải file JSON)</button><button class=pri onclick="$('#imp').click()">⬆ Khôi phục từ file</button><input id=imp type=file accept=".json" hidden onchange="imp(this)"><p class=c>Dữ liệu lưu ngay trên điện thoại này. Hãy sao lưu thường xuyên.</p>
+<h3>Reset dữ liệu</h3><button class=sec style="border-color:#c0392b;color:#c0392b" onclick="resetForm()">⚠️ Xóa dữ liệu, làm lại từ đầu</button>`}
+function resetForm(){modal(`<h3>⚠️ Reset dữ liệu</h3><p class=c>Dữ liệu đã xóa không lấy lại được, trừ khi có file sao lưu.</p>
+<select id=rm><option value=t>Chỉ xóa giao dịch: phiên câu, hóa đơn, bán lẻ, chi phí, thả cá, sổ doanh thu (giữ hồ, ca câu, hàng hóa, loại cá, tài khoản)</option><option value=a>Xóa toàn bộ, như mới cài app (cả tài khoản và cài đặt)</option></select>
+<label class=row style="margin:8px 0"><input type=checkbox id=rb checked style="width:auto;margin:0"> Tải file sao lưu trước khi xóa</label>
+<input id=rpw type=password placeholder="Mật khẩu chủ hồ" autocomplete=current-password><input id=rx placeholder="Gõ XOA để xác nhận" autocomplete=off>
+<button class=pri style="background:#c0392b;box-shadow:none" onclick="doReset()">Xóa dữ liệu</button><button class=gh style="color:var(--mut)" onclick="closeM()">Hủy</button>`)}
+async function doReset(){if(!S.auth||S.auth.h!==hash(S.auth.u+':'+$('#rpw').value))return toast('Sai mật khẩu');if($('#rx').value.trim().toUpperCase()!=='XOA')return toast('Gõ XOA để xác nhận');
+const all=$('#rm').value==='a';if($('#rb').checked)await exp();try{await tx('days','readwrite',s=>s.clear());if(all)await tx('kv','readwrite',s=>s.clear())}catch(e){}
+if(all){localStorage.removeItem(K);closeM();toast('Đã xóa toàn bộ, đang khởi động lại…');return setTimeout(()=>location.reload(),1200)}
+Object.assign(S,{sessions:[],sales:[],expenses:[],stock:[]});delete S.lastClose;cart=[];save();closeM();tab=0;render();toast('Đã xóa dữ liệu giao dịch')}
 function delPond(i){const p=P(i);if(active().some(s=>s.pond==i))return toast('Hồ đang có khách câu, chưa xóa được');if(!confirm('Xóa '+p.name+'? Hóa đơn và báo cáo cũ vẫn giữ.'))return;S.ponds=S.ponds.filter(x=>x.id!=i);if(pid==i)pid=S.ponds[0]&&S.ponds[0].id;save();render()}
 function editCa(i){const c=i?S.cas.find(x=>x.id==i):{n:'',h:4,p:150000,ot:40000};const n=prompt('Tên ca (vd: Ca sáng, Ca 4 tiếng):',c.n);if(!n)return;c.n=n;
 c.h=Math.max(.5,+prompt('Số giờ của ca:',c.h)||c.h);c.p=+prompt('Giá ca (đ):',c.p)||c.p;const ot=prompt('Giá mỗi giờ lố (đ, nhập 0 nếu không tính lố):',c.ot);if(ot!==null&&ot!=='')c.ot=Math.max(0,+ot||0);if(!i)S.cas.push({...c,id:id()});save();render()}
